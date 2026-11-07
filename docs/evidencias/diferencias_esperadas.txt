@@ -1,0 +1,8 @@
+23,24c23,26
+< prioridad 4 (sin mensaje) -> None
+< prioridad como string '1' (sin mensaje) -> None
+---
+> prioridad invalida
+> prioridad 4 -> False
+> prioridad invalida
+> prioridad como string '1' -> False
