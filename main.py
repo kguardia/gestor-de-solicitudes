@@ -1,6 +1,7 @@
 import json
 import os
 import datetime
+from typing import Any, Dict, List, Optional, Tuple
 
 
 datos = {"solicitudes": [], "estudiantes": [], "responsables": []}
@@ -69,68 +70,33 @@ class GestorSolicitudes:
         print(f"solicitud {self.contador} registrada")
         return self.contador
 
-    def cambiar_estado(self, id, nuevo):
-        for s in datos["solicitudes"]:
-            if s["id"] == id:
+ ########################################################################
 
-
-                if s["estado"] == "PENDIENTE":
-                    if nuevo == "EN_PROCESO" or nuevo == "RECHAZADA":
-                        s["estado"] = nuevo
-                        self.guardar()
-                        return True
-                    else:
-                        print("transicion invalida")
-                        return False
-                elif s["estado"] == "EN_PROCESO":
-                    if nuevo == "RESUELTA" or nuevo == "RECHAZADA":
-                        s["estado"] = nuevo
-                        self.guardar()
-                        return True
-                    else:
-                        print("transicion invalida")
-                        return False
-                else:
-                    print("la solicitud ya esta cerrada")
-                    return False
-        print("no existe")
-        return False
-
-    def asignar(self, id, resp, area):
-        for s in datos["solicitudes"]:
-            if s["id"] == id:
-                s["resp"] = resp
-                esta = False
-                for r in datos["responsables"]:
-                    if r["nombre"] == resp:
-                        esta = True
-                if not esta:
-                    datos["responsables"].append({"nombre": resp, "area": area})
-                self.guardar()
-                return True
-        return False
-
-
-    def buscar_por_estado(self, est):
-        l = []
-        for s in datos["solicitudes"]:
-            if s["estado"] == est:
-                l.append(s)
-        return l
-
-    def buscar_por_tipo(self, t):
-        l = []
-        for s in datos["solicitudes"]:
-            if s["tipo"] == t:
-                l.append(s)
-        return l
-
-    def buscar_por_prioridad(self, p):
-        l = []
-        for s in datos["solicitudes"]:
-            if s["prio"] == p:
-                l.append(s)
-        return l
+## Refactorizacion de estructuras if/else anidadas y redundancia en búsquedas manuales con bucles for.
+    def buscar_por(self, campo: str, valor: Any) -> list[dict[str, Any]]:
+        """Filtro genérico (principio DRY)."""
+        return [s for s in self.datos["solicitudes"] if s.get(campo) == valor]
+ 
+    def buscar_por_estado(self, est: str) -> list[dict[str, Any]]:
+        return self.buscar_por("estado", est)
+ 
+    def buscar_por_tipo(self, t: str) -> list[dict[str, Any]]:
+        return self.buscar_por("tipo", t)
+ 
+    def buscar_por_prioridad(self, p: int) -> list[dict[str, Any]]:
+        return self.buscar_por("prio", p)
+    
+    def asignar(self, id_solicitud: int, resp: str, area: str) -> bool:
+        """Asigna un responsable a una solicitud existente."""
+        solicitud = self._buscar_solicitud(id_solicitud)
+        if not solicitud:
+            return False
+ 
+        solicitud["resp"] = resp
+        self._obtener_o_crear_responsable(resp, area)
+        self.guardar()
+        return True
+##################################
 
     def reporte(self):
 
