@@ -98,32 +98,37 @@ class GestorSolicitudes:
         return True
 ##################################
 
-    def reporte(self):
+#reporte simplificado 
 
-        out = ""
-        total = 0
-        pend = 0
-        proc = 0
-        res = 0
-        rech = 0
-        for s in datos["solicitudes"]:
-            total += 1
-            if s["estado"] == "PENDIENTE":
-                pend += 1
-            if s["estado"] == "EN_PROCESO":
-                proc += 1
-            if s["estado"] == "RESUELTA":
-                res += 1
-            if s["estado"] == "RECHAZADA":
-                rech += 1
-            nom = ""
-            for e in datos["estudiantes"]:
-                if e["legajo"] == s["legajo"]:
-                    nom = e["nombre"]
-            out += "#" + str(s["id"]) + " | " + s["tipo"] + " | P" + str(s["prio"]) + " | " + s["estado"] + " | " + nom + " | " + (s["resp"] if s["resp"] != "" else "SIN ASIGNAR") + "\n"
-        out += "Total: " + str(total) + " Pend: " + str(pend) + " Proc: " + str(proc) + " Res: " + str(res) + " Rech: " + str(rech)
-        print(out)
-        return out
+    def reporte(self) -> str:
+        """Genera y muestra un resumen estadístico y listado de solicitudes."""
+        conteo = {"PENDIENTE": 0, "EN_PROCESO": 0, "RESUELTA": 0, "RECHAZADA": 0}
+        lineas = []
+ 
+        for s in self.datos["solicitudes"]:
+            if s["estado"] in conteo:
+                conteo[s["estado"]] += 1
+ 
+            estudiante = next(
+                (e for e in self.datos["estudiantes"] if e["legajo"] == s["legajo"]),
+                None,
+            )
+            nombre_est = estudiante["nombre"] if estudiante else "DESCONOCIDO"
+            responsable = s["resp"] if s["resp"] else "SIN ASIGNAR"
+ 
+            lineas.append(
+                f"#{s['id']} | {s['tipo']} | P{s['prio']} | {s['estado']} | "
+                f"{nombre_est} | {responsable}"
+            )
+ 
+        total = len(self.datos["solicitudes"])
+        resumen = (
+            f"Total: {total} Pend: {conteo['PENDIENTE']} Proc: {conteo['EN_PROCESO']} "
+            f"Res: {conteo['RESUELTA']} Rech: {conteo['RECHAZADA']}"
+        )
+        salida = "\n".join(lineas) + ("\n" if lineas else "") + resumen
+        print(salida)
+        return salida
 
 
 if __name__ == "__main__":
