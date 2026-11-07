@@ -28,17 +28,15 @@ class GestorSolicitudes:
         global datos, contador
         if os.path.exists("datos.json"):
             try:
-                f = open("datos.json")
-                datos = json.load(f)
-                f.close()
+                with open("datos.json") as f:
+                    datos = json.load(f)
                 contador = len(datos["solicitudes"])
-            except:
-                print("error")
+            except (json.JSONDecodeError, OSError) as error:
+                raise RuntimeError("No se pudo leer datos.json: " + str(error)) from error
 
     def guardar(self):
-        f = open("datos.json", "w")
-        json.dump(datos, f)
-        f.close()
+        with open("datos.json", "w") as f:
+            json.dump(datos, f)
 
     def registrar(self, solicitud):
         global contador
