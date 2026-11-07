@@ -38,6 +38,15 @@ class GestorSolicitudes:
         with open("datos.json", "w") as f:
             json.dump(datos, f)
 
+    def _aplicar_regla_prioridad(self, tipo, prio):
+        if tipo == "BAJA":
+            return 1
+        if tipo == "REVISION" and prio > 2:
+            return 2
+        if tipo == "CERTIFICADO":
+            return 3
+        return prio
+    
     def registrar(self, solicitud):
         global contador
 
@@ -72,15 +81,7 @@ class GestorSolicitudes:
             datos["responsables"].append(r)
         contador = contador + 1
 
-        if solicitud.tipo == "BAJA":
-            prio = 1
-        elif solicitud.tipo == "REVISION":
-            if prio > 2:
-                prio = 2
-        elif solicitud.tipo == "CERTIFICADO":
-            prio = 3
-        elif solicitud.tipo == "EQUIVALENCIA":
-            pass
+        prio = self._aplicar_regla_prioridad(solicitud.tipo, prio)
 
         s = {"id": contador, "legajo": solicitud.legajo, "tipo": solicitud.tipo, "desc": solicitud.desc,
              "prio": prio, "estado": "PENDIENTE", "resp": solicitud.resp, "fecha": solicitud.fecha}
