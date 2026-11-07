@@ -1,0 +1,86 @@
+
+=== 1. REGISTRAR - casos felices (regla de prioridad por tipo) ===
+solicitud 1 registrada
+BAJA con prio 3 (debe quedar 1) -> 1
+solicitud 2 registrada
+CERTIFICADO con prio 1 y responsable Marta (debe quedar 3) -> 2
+solicitud 3 registrada
+REVISION con prio 3 (tope 2) -> 3
+solicitud 4 registrada
+EQUIVALENCIA con prio 2 y responsable Laura (conserva 2) -> 4
+solicitud 5 registrada
+REVISION con prio 1, estudiante L001 ya existente (conserva 1) -> 5
+solicitud 6 registrada
+EQUIVALENCIA con prio 3 (conserva 3) -> 6
+
+=== 2. REGISTRAR - casos de error ===
+legajo invalido
+legajo vacio -> False
+legajo invalido
+legajo None -> False
+tipo invalido
+tipo invalido -> False
+prioridad 4 (sin mensaje) -> None
+prioridad como string '1' (sin mensaje) -> None
+descripcion muy corta
+descripcion corta -> False
+
+=== 3. CAMBIAR ESTADO - transiciones validas ===
+1: PENDIENTE -> EN_PROCESO -> True
+1: EN_PROCESO -> RESUELTA -> True
+2: PENDIENTE -> RECHAZADA -> True
+3: PENDIENTE -> EN_PROCESO -> True
+3: EN_PROCESO -> RECHAZADA -> True
+4: PENDIENTE -> EN_PROCESO -> True
+
+=== 4. CAMBIAR ESTADO - casos de error ===
+transicion invalida
+5: PENDIENTE -> RESUELTA (salto invalido) -> False
+transicion invalida
+5: PENDIENTE -> valor inexistente 'XYZ' -> False
+transicion invalida
+4: EN_PROCESO -> PENDIENTE (retroceso) -> False
+la solicitud ya esta cerrada
+1: ya RESUELTA (cerrada) -> False
+la solicitud ya esta cerrada
+2: ya RECHAZADA (cerrada) -> False
+no existe
+id inexistente -> False
+
+=== 5. ASIGNAR ===
+solicitud 5 -> responsable existente (Marta) -> True
+solicitud 5 -> responsable nuevo (Carlos) -> True
+solicitud 6 -> responsable existente con otra area (Laura) -> True
+id inexistente -> False
+
+=== 6. BUSQUEDAS ===
+por estado PENDIENTE -> [{'id': 5, 'legajo': 'L001', 'tipo': 'REVISION', 'desc': 'Revision de parcial de Fisica', 'prio': 1, 'estado': 'PENDIENTE', 'resp': 'Carlos', 'fecha': '2026-03-05'}, {'id': 6, 'legajo': 'L002', 'tipo': 'EQUIVALENCIA', 'desc': 'Equivalencia de Programacion', 'prio': 3, 'estado': 'PENDIENTE', 'resp': 'Laura', 'fecha': '2026-03-06'}]
+por estado EN_PROCESO -> [{'id': 4, 'legajo': 'L004', 'tipo': 'EQUIVALENCIA', 'desc': 'Equivalencia de Algebra', 'prio': 2, 'estado': 'EN_PROCESO', 'resp': 'Laura', 'fecha': '2026-03-04'}]
+por estado RESUELTA -> [{'id': 1, 'legajo': 'L001', 'tipo': 'BAJA', 'desc': 'Quiero darme de baja', 'prio': 1, 'estado': 'RESUELTA', 'resp': '', 'fecha': '2026-03-01'}]
+por estado RECHAZADA -> [{'id': 2, 'legajo': 'L002', 'tipo': 'CERTIFICADO', 'desc': 'Certificado alumno regular', 'prio': 3, 'estado': 'RECHAZADA', 'resp': 'Marta', 'fecha': '2026-03-02'}, {'id': 3, 'legajo': 'L003', 'tipo': 'REVISION', 'desc': 'Revision de nota final', 'prio': 2, 'estado': 'RECHAZADA', 'resp': '', 'fecha': '2026-03-03'}]
+por estado INEXISTENTE -> []
+por tipo CERTIFICADO -> [{'id': 2, 'legajo': 'L002', 'tipo': 'CERTIFICADO', 'desc': 'Certificado alumno regular', 'prio': 3, 'estado': 'RECHAZADA', 'resp': 'Marta', 'fecha': '2026-03-02'}]
+por tipo EQUIVALENCIA -> [{'id': 4, 'legajo': 'L004', 'tipo': 'EQUIVALENCIA', 'desc': 'Equivalencia de Algebra', 'prio': 2, 'estado': 'EN_PROCESO', 'resp': 'Laura', 'fecha': '2026-03-04'}, {'id': 6, 'legajo': 'L002', 'tipo': 'EQUIVALENCIA', 'desc': 'Equivalencia de Programacion', 'prio': 3, 'estado': 'PENDIENTE', 'resp': 'Laura', 'fecha': '2026-03-06'}]
+por tipo REVISION -> [{'id': 3, 'legajo': 'L003', 'tipo': 'REVISION', 'desc': 'Revision de nota final', 'prio': 2, 'estado': 'RECHAZADA', 'resp': '', 'fecha': '2026-03-03'}, {'id': 5, 'legajo': 'L001', 'tipo': 'REVISION', 'desc': 'Revision de parcial de Fisica', 'prio': 1, 'estado': 'PENDIENTE', 'resp': 'Carlos', 'fecha': '2026-03-05'}]
+por tipo BAJA -> [{'id': 1, 'legajo': 'L001', 'tipo': 'BAJA', 'desc': 'Quiero darme de baja', 'prio': 1, 'estado': 'RESUELTA', 'resp': '', 'fecha': '2026-03-01'}]
+por tipo INEXISTENTE -> []
+por prioridad 1 -> [{'id': 1, 'legajo': 'L001', 'tipo': 'BAJA', 'desc': 'Quiero darme de baja', 'prio': 1, 'estado': 'RESUELTA', 'resp': '', 'fecha': '2026-03-01'}, {'id': 5, 'legajo': 'L001', 'tipo': 'REVISION', 'desc': 'Revision de parcial de Fisica', 'prio': 1, 'estado': 'PENDIENTE', 'resp': 'Carlos', 'fecha': '2026-03-05'}]
+por prioridad 2 -> [{'id': 3, 'legajo': 'L003', 'tipo': 'REVISION', 'desc': 'Revision de nota final', 'prio': 2, 'estado': 'RECHAZADA', 'resp': '', 'fecha': '2026-03-03'}, {'id': 4, 'legajo': 'L004', 'tipo': 'EQUIVALENCIA', 'desc': 'Equivalencia de Algebra', 'prio': 2, 'estado': 'EN_PROCESO', 'resp': 'Laura', 'fecha': '2026-03-04'}]
+por prioridad 3 -> [{'id': 2, 'legajo': 'L002', 'tipo': 'CERTIFICADO', 'desc': 'Certificado alumno regular', 'prio': 3, 'estado': 'RECHAZADA', 'resp': 'Marta', 'fecha': '2026-03-02'}, {'id': 6, 'legajo': 'L002', 'tipo': 'EQUIVALENCIA', 'desc': 'Equivalencia de Programacion', 'prio': 3, 'estado': 'PENDIENTE', 'resp': 'Laura', 'fecha': '2026-03-06'}]
+por prioridad 99 -> []
+
+=== 7. REPORTE ===
+#1 | BAJA | P1 | RESUELTA | Ana Perez | SIN ASIGNAR
+#2 | CERTIFICADO | P3 | RECHAZADA | Luis Gomez | Marta
+#3 | REVISION | P2 | RECHAZADA | Sofia Diaz | SIN ASIGNAR
+#4 | EQUIVALENCIA | P2 | EN_PROCESO | Juan Lopez | Laura
+#5 | REVISION | P1 | PENDIENTE | Ana Perez | Carlos
+#6 | EQUIVALENCIA | P3 | PENDIENTE | Luis Gomez | Laura
+Total: 6 Pend: 2 Proc: 1 Res: 1 Rech: 2
+valor devuelto por reporte() -> '#1 | BAJA | P1 | RESUELTA | Ana Perez | SIN ASIGNAR\n#2 | CERTIFICADO | P3 | RECHAZADA | Luis Gomez | Marta\n#3 | REVISION | P2 | RECHAZADA | Sofia Diaz | SIN ASIGNAR\n#4 | EQUIVALENCIA | P2 | EN_PROCESO | Juan Lopez | Laura\n#5 | REVISION | P1 | PENDIENTE | Ana Perez | Carlos\n#6 | EQUIVALENCIA | P3 | PENDIENTE | Luis Gomez | Laura\nTotal: 6 Pend: 2 Proc: 1 Res: 1 Rech: 2'
+
+=== 8. CASO FRAGIL - descripcion None ===
+registrar con desc=None -> EXCEPCION TypeError
+
+=== 9. CONTENIDO FINAL DE datos.json ===
+{"solicitudes": [{"id": 1, "legajo": "L001", "tipo": "BAJA", "desc": "Quiero darme de baja", "prio": 1, "estado": "RESUELTA", "resp": "", "fecha": "2026-03-01"}, {"id": 2, "legajo": "L002", "tipo": "CERTIFICADO", "desc": "Certificado alumno regular", "prio": 3, "estado": "RECHAZADA", "resp": "Marta", "fecha": "2026-03-02"}, {"id": 3, "legajo": "L003", "tipo": "REVISION", "desc": "Revision de nota final", "prio": 2, "estado": "RECHAZADA", "resp": "", "fecha": "2026-03-03"}, {"id": 4, "legajo": "L004", "tipo": "EQUIVALENCIA", "desc": "Equivalencia de Algebra", "prio": 2, "estado": "EN_PROCESO", "resp": "Laura", "fecha": "2026-03-04"}, {"id": 5, "legajo": "L001", "tipo": "REVISION", "desc": "Revision de parcial de Fisica", "prio": 1, "estado": "PENDIENTE", "resp": "Carlos", "fecha": "2026-03-05"}, {"id": 6, "legajo": "L002", "tipo": "EQUIVALENCIA", "desc": "Equivalencia de Programacion", "prio": 3, "estado": "PENDIENTE", "resp": "Laura", "fecha": "2026-03-06"}], "estudiantes": [{"legajo": "L001", "nombre": "Ana Perez", "email": "ana@uni.edu"}, {"legajo": "L002", "nombre": "Luis Gomez", "email": "luis@uni.edu"}, {"legajo": "L003", "nombre": "Sofia Diaz", "email": "sofi@uni.edu"}, {"legajo": "L004", "nombre": "Juan Lopez", "email": "juan@uni.edu"}], "responsables": [{"nombre": "Marta", "area": "Alumnos"}, {"nombre": "Laura", "area": "Equivalencias"}, {"nombre": "Carlos", "area": "Docencia"}]}
