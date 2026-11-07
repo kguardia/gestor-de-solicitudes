@@ -1,11 +1,22 @@
 import json
 import os
 import datetime
-
+from dataclasses import dataclass
 
 datos = {"solicitudes": [], "estudiantes": [], "responsables": []}
 contador = 0
 
+@dataclass(frozen=True)
+class NuevaSolicitud:
+    legajo: str
+    nombre_est: str
+    email: str
+    tipo: str
+    desc: str
+    prio: int
+    area: str
+    resp: str
+    fecha: str
 
 class GestorSolicitudes:
    
@@ -29,57 +40,56 @@ class GestorSolicitudes:
         json.dump(datos, f)
         f.close()
 
-    def registrar(self, legajo, nombre_est, email, tipo, desc, prio, area, resp, fecha):
+    def registrar(self, solicitud):
         global contador
-        
 
-        if legajo == "" or legajo is None:
+        if solicitud.legajo == "" or solicitud.legajo is None:
             print("legajo invalido")
             return False
-        if tipo != "CERTIFICADO" and tipo != "EQUIVALENCIA" and tipo != "REVISION" and tipo != "BAJA":
+        if solicitud.tipo != "CERTIFICADO" and solicitud.tipo != "EQUIVALENCIA" and solicitud.tipo != "REVISION" and solicitud.tipo != "BAJA":
             print("tipo invalido")
             return False
+        prio = solicitud.prio
         if prio != 1 and prio != 2 and prio != 3:
             return None
-        if len(desc) < 5:
+        if len(solicitud.desc) < 5:
             print("descripcion muy corta")
             return False
 
         e = None
         for x in datos["estudiantes"]:
-            if x["legajo"] == legajo:
+            if x["legajo"] == solicitud.legajo:
                 e = x
         if e is None:
-            e = {"legajo": legajo, "nombre": nombre_est, "email": email}
+            e = {"legajo": solicitud.legajo, "nombre": solicitud.nombre_est, "email": solicitud.email}
             datos["estudiantes"].append(e)
 
         r = None
         for x in datos["responsables"]:
-            if x["nombre"] == resp:
+            if x["nombre"] == solicitud.resp:
                 r = x
-        if r is None and resp != "":
-            r = {"nombre": resp, "area": area}
+        if r is None and solicitud.resp != "":
+            r = {"nombre": solicitud.resp, "area": solicitud.area}
             datos["responsables"].append(r)
         contador = contador + 1
 
-
-        
-        if tipo == "BAJA":
+        if solicitud.tipo == "BAJA":
             prio = 1
-        elif tipo == "REVISION":
+        elif solicitud.tipo == "REVISION":
             if prio > 2:
                 prio = 2
-        elif tipo == "CERTIFICADO":
+        elif solicitud.tipo == "CERTIFICADO":
             prio = 3
-        elif tipo == "EQUIVALENCIA":
+        elif solicitud.tipo == "EQUIVALENCIA":
             pass
-        s = {"id": contador, "legajo": legajo, "tipo": tipo, "desc": desc,
-             "prio": prio, "estado": "PENDIENTE", "resp": resp, "fecha": fecha}
+
+        s = {"id": contador, "legajo": solicitud.legajo, "tipo": solicitud.tipo, "desc": solicitud.desc,
+             "prio": prio, "estado": "PENDIENTE", "resp": solicitud.resp, "fecha": solicitud.fecha}
         datos["solicitudes"].append(s)
         self.guardar()
         print("solicitud " + str(contador) + " registrada")
         return contador
-
+    
     def cambiar_estado(self, id, nuevo):
         for s in datos["solicitudes"]:
             if s["id"] == id:
