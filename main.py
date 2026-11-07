@@ -49,7 +49,8 @@ class GestorSolicitudes:
             return False
         prio = solicitud.prio
         if prio != 1 and prio != 2 and prio != 3:
-            return None
+            print("prioridad invalida")
+            return False
         if len(solicitud.desc) < 5:
             print("descripcion muy corta")
             return False
