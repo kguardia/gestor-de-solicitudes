@@ -138,10 +138,10 @@ class GestorSolicitudes:
                 resultado.append(solicitud)
         return resultado
 
-    def buscar_por_tipo(self, prioridad):
+    def buscar_por_tipo(self, tipo):
         resultado = []
         for solicitud in datos["solicitudes"]:
-            if solicitud["tipo"] == prioridad:
+            if solicitud["tipo"] == tipo:
                 resultado.append(solicitud)
         return resultado
 
