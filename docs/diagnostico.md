@@ -18,5 +18,5 @@ El detalle de cada uno (evidencia, ubicación, impacto, riesgo de mantenimiento 
 | 10 | Regla de negocio oculta | `registrar` | Media | Karen G. |
 | 11 | Ifs anidados en transiciones | `cambiar_estado` | Alta | Gastón |
 | 12 | Reporte con cálculo y formato mezclados | `reporte` | Media | Gastón |
-| 13 | Responsable identificado por nombre | `registrar`, `asignar` | Media | Karen O. |
+| 13 | Responsable identificado por nombre | `registrar`, `asignar` Media | Karen O. |
 

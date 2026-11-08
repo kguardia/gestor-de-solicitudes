@@ -16,7 +16,7 @@ IMPORTANTE:
 """
 import os
 
-from main import GestorSolicitudes  # <-- ajustar si el modulo tiene otro nombre
+from main import GestorSolicitudes, NuevaSolicitud  # <-- ajustar si el modulo tiene otro nombre
 
 ARCHIVO_DATOS = "datos.json"
 
@@ -34,8 +34,7 @@ def registrar_caso(g, legajo="L001", tipo="BAJA", desc="Descripcion valida",
                    prio=2, resp="", nombre="Estudiante Prueba",
                    email="prueba@uni.edu", area="Alumnos", fecha="2026-03-01"):
     """Unico punto de contacto con registrar(). Si cambia la firma, se adapta aca."""
-    return g.registrar(legajo=legajo, nombre_est=nombre, email=email, tipo=tipo,
-                       desc=desc, prio=prio, area=area, resp=resp, fecha=fecha)
+    return g.registrar(NuevaSolicitud(legajo=legajo, nombre_est=nombre, email=email, tipo=tipo, desc=desc, prio=prio, area=area, resp=resp, fecha=fecha))
 
 
 def main():
@@ -75,8 +74,8 @@ def main():
     mostrar("legajo vacio", registrar_caso(g, legajo=""))
     mostrar("legajo None", registrar_caso(g, legajo=None))
     mostrar("tipo invalido", registrar_caso(g, tipo="OTRO"))
-    mostrar("prioridad 4 (sin mensaje)", registrar_caso(g, prio=4))
-    mostrar("prioridad como string '1' (sin mensaje)", registrar_caso(g, prio="1"))
+    mostrar("prioridad 4", registrar_caso(g, prio=4))
+    mostrar("prioridad como string '1'", registrar_caso(g, prio="1"))
     mostrar("descripcion corta", registrar_caso(g, desc="abc"))
 
     # ------------------------------------------------------------------
