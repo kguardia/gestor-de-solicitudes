@@ -19,10 +19,16 @@ class GestorSolicitudes:
 
     # Smell #1: los datos y el contador dejan de ser variables globales y pasan a ser
     # atributos de cada instancia.
-    def __init__(self):
+    # Smell #8: los mensajes se envian a una funcion de salida que se recibe por
+    # parametro (por defecto print), en lugar de llamar a print desde la logica.
+    def __init__(self, salida=print):
         self.datos = {"solicitudes": [], "estudiantes": [], "responsables": []}
         self.contador = 0
+        self._salida = salida
         self.cargar()
+
+    def _informar(self, mensaje):
+        self._salida(mensaje)
 
     def cargar(self):
         if os.path.exists("datos.json"):
@@ -60,21 +66,21 @@ class GestorSolicitudes:
         nueva_solicitud = self._crear_solicitud(solicitud, prio)
         self.datos["solicitudes"].append(nueva_solicitud)
         self.guardar()
-        print("solicitud " + str(self.contador) + " registrada")
+        self._informar("solicitud " + str(self.contador) + " registrada")
         return self.contador
 
     def _validar_registro(self, solicitud):
         if solicitud.legajo == "" or solicitud.legajo is None:
-            print("legajo invalido")
+            self._informar("legajo invalido")
             return False
         if solicitud.tipo != "CERTIFICADO" and solicitud.tipo != "EQUIVALENCIA" and solicitud.tipo != "REVISION" and solicitud.tipo != "BAJA":
-            print("tipo invalido")
+            self._informar("tipo invalido")
             return False
         if solicitud.prio != 1 and solicitud.prio != 2 and solicitud.prio != 3:
-            print("prioridad invalida")
+            self._informar("prioridad invalida")
             return False
         if len(solicitud.desc) < 5:
-            print("descripcion muy corta")
+            self._informar("descripcion muy corta")
             return False
         return True
 
@@ -111,7 +117,7 @@ class GestorSolicitudes:
                         self.guardar()
                         return True
                     else:
-                        print("transicion invalida")
+                        self._informar("transicion invalida")
                         return False
                 elif solicitud["estado"] == "EN_PROCESO":
                     if nuevo_estado == "RESUELTA" or nuevo_estado == "RECHAZADA":
@@ -119,12 +125,12 @@ class GestorSolicitudes:
                         self.guardar()
                         return True
                     else:
-                        print("transicion invalida")
+                        self._informar("transicion invalida")
                         return False
                 else:
-                    print("la solicitud ya esta cerrada")
+                    self._informar("la solicitud ya esta cerrada")
                     return False
-        print("no existe")
+        self._informar("no existe")
         return False
 
     def asignar(self, id_solicitud, nombre_responsable, area):
@@ -187,7 +193,7 @@ class GestorSolicitudes:
                     nombre_estudiante = estudiante["nombre"]
             salida += "#" + str(solicitud["id"]) + " | " + solicitud["tipo"] + " | P" + str(solicitud["prio"]) + " | " + solicitud["estado"] + " | " + nombre_estudiante + " | " + (solicitud["resp"] if solicitud["resp"] != "" else "SIN ASIGNAR") + "\n"
         salida += "Total: " + str(total) + " Pend: " + str(pendientes) + " Proc: " + str(en_proceso) + " Res: " + str(resueltas) + " Rech: " + str(rechazadas)
-        print(salida)
+        self._informar(salida)
         return salida
 
 
