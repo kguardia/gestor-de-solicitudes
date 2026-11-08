@@ -1,9 +1,9 @@
 
 === Move Method: persistencia fuera de GestorSolicitudes ===
-PASA  | existe la clase RepositorioJSON
-PASA  | GestorSolicitudes ya no abre archivos ni usa json
-PASA  | el gestor funciona con otro repositorio (en memoria)
-PASA  | con el repositorio en memoria no se crea datos.json
-PASA  | RepositorioJSON guarda y vuelve a leer los mismos datos
+FALLA | existe la clase RepositorioJSON
+FALLA | GestorSolicitudes ya no abre archivos ni usa json
+FALLA | el gestor funciona con otro repositorio (en memoria)
+FALLA | con el repositorio en memoria no se crea datos.json
+FALLA | RepositorioJSON guarda y vuelve a leer los mismos datos
 
-Resultado: 5 de 5 verificaciones pasan
+Resultado: 0 de 5 verificaciones pasan
