@@ -46,48 +46,60 @@ class GestorSolicitudes:
             return 3
         return prio
     
+    # Smell #2: registrar solo coordina los pasos; cada tarea esta en un metodo propio
+    # con una sola responsabilidad (Extract Method).
     def registrar(self, solicitud):
+        if not self._validar_registro(solicitud):
+            return False
 
+        self._obtener_o_crear_estudiante(solicitud)
+        self._obtener_o_crear_responsable(solicitud.resp, solicitud.area)
+        self.contador = self.contador + 1
+        prio = self._aplicar_regla_prioridad(solicitud.tipo, solicitud.prio)
+
+        nueva_solicitud = self._crear_solicitud(solicitud, prio)
+        self.datos["solicitudes"].append(nueva_solicitud)
+        self.guardar()
+        print("solicitud " + str(self.contador) + " registrada")
+        return self.contador
+
+    def _validar_registro(self, solicitud):
         if solicitud.legajo == "" or solicitud.legajo is None:
             print("legajo invalido")
             return False
         if solicitud.tipo != "CERTIFICADO" and solicitud.tipo != "EQUIVALENCIA" and solicitud.tipo != "REVISION" and solicitud.tipo != "BAJA":
             print("tipo invalido")
             return False
-        prio = solicitud.prio
-        if prio != 1 and prio != 2 and prio != 3:
+        if solicitud.prio != 1 and solicitud.prio != 2 and solicitud.prio != 3:
             print("prioridad invalida")
             return False
         if len(solicitud.desc) < 5:
             print("descripcion muy corta")
             return False
+        return True
 
-        estudiante = None
+    def _obtener_o_crear_estudiante(self, solicitud):
         for estudiante_guardado in self.datos["estudiantes"]:
             if estudiante_guardado["legajo"] == solicitud.legajo:
-                estudiante = estudiante_guardado
-        if estudiante is None:
-            estudiante = {"legajo": solicitud.legajo, "nombre": solicitud.nombre_est, "email": solicitud.email}
-            self.datos["estudiantes"].append(estudiante)
+                return estudiante_guardado
+        estudiante = {"legajo": solicitud.legajo, "nombre": solicitud.nombre_est, "email": solicitud.email}
+        self.datos["estudiantes"].append(estudiante)
+        return estudiante
 
-        responsable = None
+    def _obtener_o_crear_responsable(self, nombre_responsable, area):
         for responsable_guardado in self.datos["responsables"]:
-            if responsable_guardado["nombre"] == solicitud.resp:
-                responsable = responsable_guardado
-        if responsable is None and solicitud.resp != "":
-            responsable = {"nombre": solicitud.resp, "area": solicitud.area}
-            self.datos["responsables"].append(responsable)
-        self.contador = self.contador + 1
+            if responsable_guardado["nombre"] == nombre_responsable:
+                return responsable_guardado
+        if nombre_responsable == "":
+            return None
+        responsable = {"nombre": nombre_responsable, "area": area}
+        self.datos["responsables"].append(responsable)
+        return responsable
 
-        prio = self._aplicar_regla_prioridad(solicitud.tipo, prio)
+    def _crear_solicitud(self, solicitud, prio):
+        return {"id": self.contador, "legajo": solicitud.legajo, "tipo": solicitud.tipo, "desc": solicitud.desc,
+                "prio": prio, "estado": "PENDIENTE", "resp": solicitud.resp, "fecha": solicitud.fecha}
 
-        nueva_solicitud = {"id": self.contador, "legajo": solicitud.legajo, "tipo": solicitud.tipo, "desc": solicitud.desc,
-                           "prio": prio, "estado": "PENDIENTE", "resp": solicitud.resp, "fecha": solicitud.fecha}
-        self.datos["solicitudes"].append(nueva_solicitud)
-        self.guardar()
-        print("solicitud " + str(self.contador) + " registrada")
-        return self.contador
-    
     def cambiar_estado(self, id_solicitud, nuevo_estado):
         for solicitud in self.datos["solicitudes"]:
             if solicitud["id"] == id_solicitud:
