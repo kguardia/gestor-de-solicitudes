@@ -17,6 +17,33 @@ class NuevaSolicitud:
     fecha: str
 
 
+# Smell #6: los valores que antes estaban escritos sueltos en el codigo tienen nombre.
+TIPO_CERTIFICADO = "CERTIFICADO"
+TIPO_EQUIVALENCIA = "EQUIVALENCIA"
+TIPO_REVISION = "REVISION"
+TIPO_BAJA = "BAJA"
+TIPOS_VALIDOS = (TIPO_CERTIFICADO, TIPO_EQUIVALENCIA, TIPO_REVISION, TIPO_BAJA)
+
+ESTADO_PENDIENTE = "PENDIENTE"
+ESTADO_EN_PROCESO = "EN_PROCESO"
+ESTADO_RESUELTA = "RESUELTA"
+ESTADO_RECHAZADA = "RECHAZADA"
+ESTADOS = (ESTADO_PENDIENTE, ESTADO_EN_PROCESO, ESTADO_RESUELTA, ESTADO_RECHAZADA)
+
+PRIORIDAD_ALTA = 1
+PRIORIDAD_MEDIA = 2
+PRIORIDAD_BAJA = 3
+PRIORIDADES_VALIDAS = (PRIORIDAD_ALTA, PRIORIDAD_MEDIA, PRIORIDAD_BAJA)
+
+LARGO_MINIMO_DESCRIPCION = 5
+
+# Smell #11: transiciones permitidas desde cada estado abierto.
+TRANSICIONES_VALIDAS = {
+    ESTADO_PENDIENTE: (ESTADO_EN_PROCESO, ESTADO_RECHAZADA),
+    ESTADO_EN_PROCESO: (ESTADO_RESUELTA, ESTADO_RECHAZADA),
+}
+
+
 # Move Method: la lectura y escritura del archivo se mueven de GestorSolicitudes a
 # esta clase. El gestor solo conoce los metodos cargar y guardar, no el formato JSON
 # ni la ruta del archivo.
@@ -41,7 +68,6 @@ class RepositorioJSON:
 
 
 class GestorSolicitudes:
-   
 
     # Smell #1: los datos y el contador dejan de ser variables globales y pasan a ser
     # atributos de cada instancia.
@@ -69,14 +95,14 @@ class GestorSolicitudes:
         self._repositorio.guardar(self.datos)
 
     def _aplicar_regla_prioridad(self, tipo, prio):
-        if tipo == "BAJA":
-            return 1
-        if tipo == "REVISION" and prio > 2:
-            return 2
-        if tipo == "CERTIFICADO":
-            return 3
+        if tipo == TIPO_BAJA:
+            return PRIORIDAD_ALTA
+        if tipo == TIPO_REVISION and prio > PRIORIDAD_MEDIA:
+            return PRIORIDAD_MEDIA
+        if tipo == TIPO_CERTIFICADO:
+            return PRIORIDAD_BAJA
         return prio
-    
+
     # Smell #2: registrar solo coordina los pasos; cada tarea esta en un metodo propio
     # con una sola responsabilidad (Extract Method).
     def registrar(self, solicitud):
@@ -98,13 +124,13 @@ class GestorSolicitudes:
         if solicitud.legajo == "" or solicitud.legajo is None:
             self._informar("legajo invalido")
             return False
-        if solicitud.tipo != "CERTIFICADO" and solicitud.tipo != "EQUIVALENCIA" and solicitud.tipo != "REVISION" and solicitud.tipo != "BAJA":
+        if solicitud.tipo not in TIPOS_VALIDOS:
             self._informar("tipo invalido")
             return False
-        if solicitud.prio != 1 and solicitud.prio != 2 and solicitud.prio != 3:
+        if solicitud.prio not in PRIORIDADES_VALIDAS:
             self._informar("prioridad invalida")
             return False
-        if len(solicitud.desc) < 5:
+        if len(solicitud.desc) < LARGO_MINIMO_DESCRIPCION:
             self._informar("descripcion muy corta")
             return False
         return True
@@ -136,89 +162,86 @@ class GestorSolicitudes:
 
     def _crear_solicitud(self, solicitud, prio, nombre_responsable):
         return {"id": self.contador, "legajo": solicitud.legajo, "tipo": solicitud.tipo, "desc": solicitud.desc,
-                "prio": prio, "estado": "PENDIENTE", "resp": nombre_responsable, "fecha": solicitud.fecha}
+                "prio": prio, "estado": ESTADO_PENDIENTE, "resp": nombre_responsable, "fecha": solicitud.fecha}
 
+    # Smell #11: las transiciones validas estan en el mapa TRANSICIONES_VALIDAS en lugar
+    # de if anidados. Un estado que no figura en el mapa es un estado cerrado.
     def cambiar_estado(self, id_solicitud, nuevo_estado):
-        for solicitud in self.datos["solicitudes"]:
-            if solicitud["id"] == id_solicitud:
-                if solicitud["estado"] == "PENDIENTE":
-                    if nuevo_estado == "EN_PROCESO" or nuevo_estado == "RECHAZADA":
-                        solicitud["estado"] = nuevo_estado
-                        self.guardar()
-                        return True
-                    else:
-                        self._informar("transicion invalida")
-                        return False
-                elif solicitud["estado"] == "EN_PROCESO":
-                    if nuevo_estado == "RESUELTA" or nuevo_estado == "RECHAZADA":
-                        solicitud["estado"] = nuevo_estado
-                        self.guardar()
-                        return True
-                    else:
-                        self._informar("transicion invalida")
-                        return False
-                else:
-                    self._informar("la solicitud ya esta cerrada")
-                    return False
-        self._informar("no existe")
-        return False
+        solicitud = self._buscar_solicitud(id_solicitud)
+        if solicitud is None:
+            self._informar("no existe")
+            return False
+        estado_actual = solicitud["estado"]
+        if estado_actual not in TRANSICIONES_VALIDAS:
+            self._informar("la solicitud ya esta cerrada")
+            return False
+        if nuevo_estado not in TRANSICIONES_VALIDAS[estado_actual]:
+            self._informar("transicion invalida")
+            return False
+        solicitud["estado"] = nuevo_estado
+        self.guardar()
+        return True
 
-## Refactorizacion de estructuras if/else anidadas y redundancia en búsquedas manuales con bucles for.
+    # Smell #4: un unico filtro generico en lugar de tres bucles repetidos (DRY).
     def buscar_por(self, campo: str, valor: Any) -> list[dict[str, Any]]:
         """Filtro genérico (principio DRY)."""
         return [s for s in self.datos["solicitudes"] if s.get(campo) == valor]
- 
+
     def buscar_por_estado(self, est: str) -> list[dict[str, Any]]:
         return self.buscar_por("estado", est)
- 
+
     def buscar_por_tipo(self, t: str) -> list[dict[str, Any]]:
         return self.buscar_por("tipo", t)
- 
+
     def buscar_por_prioridad(self, p: int) -> list[dict[str, Any]]:
         return self.buscar_por("prio", p)
-    
+
+    def _buscar_solicitud(self, id_solicitud: int) -> dict[str, Any] | None:
+        """Devuelve la solicitud con ese id, o None si no existe."""
+        return next((s for s in self.datos["solicitudes"] if s["id"] == id_solicitud), None)
+
     def asignar(self, id_solicitud: int, resp: str, area: str) -> bool:
         """Asigna un responsable a una solicitud existente."""
+        # Smell #13: ya no se puede asignar un responsable sin nombre.
+        if resp is None or resp.strip() == "":
+            self._informar("responsable invalido")
+            return False
         solicitud = self._buscar_solicitud(id_solicitud)
         if not solicitud:
             return False
- 
-        solicitud["resp"] = resp
-        self._obtener_o_crear_responsable(resp, area)
+
+        solicitud["resp"] = self._obtener_o_crear_responsable(resp, area)
         self.guardar()
         return True
-##################################
-
-#reporte simplificado 
-
+    # Smell #12: el conteo usa un diccionario por estado y el texto se arma al final.
     def reporte(self) -> str:
         """Genera y muestra un resumen estadístico y listado de solicitudes."""
-        conteo = {"PENDIENTE": 0, "EN_PROCESO": 0, "RESUELTA": 0, "RECHAZADA": 0}
+        conteo = {estado: 0 for estado in ESTADOS}
         lineas = []
- 
+
         for s in self.datos["solicitudes"]:
             if s["estado"] in conteo:
                 conteo[s["estado"]] += 1
- 
+
             estudiante = next(
                 (e for e in self.datos["estudiantes"] if e["legajo"] == s["legajo"]),
                 None,
             )
-            nombre_est = estudiante["nombre"] if estudiante else "DESCONOCIDO"
+            nombre_est = estudiante["nombre"] if estudiante else ""
             responsable = s["resp"] if s["resp"] else "SIN ASIGNAR"
- 
+
             lineas.append(
                 f"#{s['id']} | {s['tipo']} | P{s['prio']} | {s['estado']} | "
                 f"{nombre_est} | {responsable}"
             )
- 
+
         total = len(self.datos["solicitudes"])
         resumen = (
-            f"Total: {total} Pend: {conteo['PENDIENTE']} Proc: {conteo['EN_PROCESO']} "
-            f"Res: {conteo['RESUELTA']} Rech: {conteo['RECHAZADA']}"
+            f"Total: {total} Pend: {conteo[ESTADO_PENDIENTE]} Proc: {conteo[ESTADO_EN_PROCESO]} "
+            f"Res: {conteo[ESTADO_RESUELTA]} Rech: {conteo[ESTADO_RECHAZADA]}"
         )
         salida = "\n".join(lineas) + ("\n" if lineas else "") + resumen
-        print(salida)
+        self._informar(salida)
         return salida
 
 
