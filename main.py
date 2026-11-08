@@ -14,6 +14,30 @@ class NuevaSolicitud:
     resp: str
     fecha: str
 
+
+# Move Method: la lectura y escritura del archivo se mueven de GestorSolicitudes a
+# esta clase. El gestor solo conoce los metodos cargar y guardar, no el formato JSON
+# ni la ruta del archivo.
+class RepositorioJSON:
+
+    def __init__(self, ruta="datos.json"):
+        self.ruta = ruta
+
+    def cargar(self):
+        """Devuelve los datos guardados, o None si el archivo todavia no existe."""
+        if not os.path.exists(self.ruta):
+            return None
+        try:
+            with open(self.ruta) as archivo:
+                return json.load(archivo)
+        except (json.JSONDecodeError, OSError) as error:
+            raise RuntimeError("No se pudo leer " + self.ruta + ": " + str(error)) from error
+
+    def guardar(self, datos):
+        with open(self.ruta, "w") as archivo:
+            json.dump(datos, archivo)
+
+
 class GestorSolicitudes:
    
 
@@ -21,27 +45,26 @@ class GestorSolicitudes:
     # atributos de cada instancia.
     # Smell #8: los mensajes se envian a una funcion de salida que se recibe por
     # parametro (por defecto print), en lugar de llamar a print desde la logica.
-    def __init__(self, salida=print):
+    # Move Method: la persistencia se delega en un repositorio que tambien se recibe
+    # por parametro (por defecto, RepositorioJSON con datos.json).
+    def __init__(self, salida=print, repositorio=None):
         self.datos = {"solicitudes": [], "estudiantes": [], "responsables": []}
         self.contador = 0
         self._salida = salida
+        self._repositorio = repositorio if repositorio is not None else RepositorioJSON()
         self.cargar()
 
     def _informar(self, mensaje):
         self._salida(mensaje)
 
     def cargar(self):
-        if os.path.exists("datos.json"):
-            try:
-                with open("datos.json") as archivo:
-                    self.datos = json.load(archivo)
-                self.contador = len(self.datos["solicitudes"])
-            except (json.JSONDecodeError, OSError) as error:
-                raise RuntimeError("No se pudo leer datos.json: " + str(error)) from error
+        datos_guardados = self._repositorio.cargar()
+        if datos_guardados is not None:
+            self.datos = datos_guardados
+            self.contador = len(self.datos["solicitudes"])
 
     def guardar(self):
-        with open("datos.json", "w") as archivo:
-            json.dump(self.datos, archivo)
+        self._repositorio.guardar(self.datos)
 
     def _aplicar_regla_prioridad(self, tipo, prio):
         if tipo == "BAJA":
