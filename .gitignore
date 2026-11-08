@@ -1,2 +1,3 @@
 __pycache__/
-datos.json
+datos.jsonsalida*.tmp.txt
+salida_tmp.txt
