@@ -1,6 +1,8 @@
 import json
 import os
 from dataclasses import dataclass
+from typing import Any
+
 
 @dataclass(frozen=True)
 class NuevaSolicitud:
@@ -139,8 +141,6 @@ class GestorSolicitudes:
     def cambiar_estado(self, id_solicitud, nuevo_estado):
         for solicitud in self.datos["solicitudes"]:
             if solicitud["id"] == id_solicitud:
-
-
                 if solicitud["estado"] == "PENDIENTE":
                     if nuevo_estado == "EN_PROCESO" or nuevo_estado == "RECHAZADA":
                         solicitud["estado"] = nuevo_estado
@@ -163,65 +163,62 @@ class GestorSolicitudes:
         self._informar("no existe")
         return False
 
-    def asignar(self, id_solicitud, nombre_responsable, area):
-        # Smell #13: ya no se puede asignar un responsable sin nombre.
-        if nombre_responsable is None or nombre_responsable.strip() == "":
-            self._informar("responsable invalido")
+## Refactorizacion de estructuras if/else anidadas y redundancia en búsquedas manuales con bucles for.
+    def buscar_por(self, campo: str, valor: Any) -> list[dict[str, Any]]:
+        """Filtro genérico (principio DRY)."""
+        return [s for s in self.datos["solicitudes"] if s.get(campo) == valor]
+ 
+    def buscar_por_estado(self, est: str) -> list[dict[str, Any]]:
+        return self.buscar_por("estado", est)
+ 
+    def buscar_por_tipo(self, t: str) -> list[dict[str, Any]]:
+        return self.buscar_por("tipo", t)
+ 
+    def buscar_por_prioridad(self, p: int) -> list[dict[str, Any]]:
+        return self.buscar_por("prio", p)
+    
+    def asignar(self, id_solicitud: int, resp: str, area: str) -> bool:
+        """Asigna un responsable a una solicitud existente."""
+        solicitud = self._buscar_solicitud(id_solicitud)
+        if not solicitud:
             return False
-        for solicitud in self.datos["solicitudes"]:
-            if solicitud["id"] == id_solicitud:
-                solicitud["resp"] = self._obtener_o_crear_responsable(nombre_responsable, area)
-                self.guardar()
-                return True
-        return False
+ 
+        solicitud["resp"] = resp
+        self._obtener_o_crear_responsable(resp, area)
+        self.guardar()
+        return True
+##################################
 
+#reporte simplificado 
 
-    def buscar_por_estado(self, estado):
-        resultado = []
-        for solicitud in self.datos["solicitudes"]:
-            if solicitud["estado"] == estado:
-                resultado.append(solicitud)
-        return resultado
-
-    def buscar_por_tipo(self, tipo):
-        resultado = []
-        for solicitud in self.datos["solicitudes"]:
-            if solicitud["tipo"] == tipo:
-                resultado.append(solicitud)
-        return resultado
-
-    def buscar_por_prioridad(self, prioridad):
-        resultado = []
-        for solicitud in self.datos["solicitudes"]:
-            if solicitud["prio"] == prioridad:
-                resultado.append(solicitud)
-        return resultado
-
-    def reporte(self):
-
-        salida = ""
-        total = 0
-        pendientes = 0
-        en_proceso = 0
-        resueltas = 0
-        rechazadas = 0
-        for solicitud in self.datos["solicitudes"]:
-            total += 1
-            if solicitud["estado"] == "PENDIENTE":
-                pendientes += 1
-            if solicitud["estado"] == "EN_PROCESO":
-                en_proceso += 1
-            if solicitud["estado"] == "RESUELTA":
-                resueltas += 1
-            if solicitud["estado"] == "RECHAZADA":
-                rechazadas += 1
-            nombre_estudiante = ""
-            for estudiante in self.datos["estudiantes"]:
-                if estudiante["legajo"] == solicitud["legajo"]:
-                    nombre_estudiante = estudiante["nombre"]
-            salida += "#" + str(solicitud["id"]) + " | " + solicitud["tipo"] + " | P" + str(solicitud["prio"]) + " | " + solicitud["estado"] + " | " + nombre_estudiante + " | " + (solicitud["resp"] if solicitud["resp"] != "" else "SIN ASIGNAR") + "\n"
-        salida += "Total: " + str(total) + " Pend: " + str(pendientes) + " Proc: " + str(en_proceso) + " Res: " + str(resueltas) + " Rech: " + str(rechazadas)
-        self._informar(salida)
+    def reporte(self) -> str:
+        """Genera y muestra un resumen estadístico y listado de solicitudes."""
+        conteo = {"PENDIENTE": 0, "EN_PROCESO": 0, "RESUELTA": 0, "RECHAZADA": 0}
+        lineas = []
+ 
+        for s in self.datos["solicitudes"]:
+            if s["estado"] in conteo:
+                conteo[s["estado"]] += 1
+ 
+            estudiante = next(
+                (e for e in self.datos["estudiantes"] if e["legajo"] == s["legajo"]),
+                None,
+            )
+            nombre_est = estudiante["nombre"] if estudiante else "DESCONOCIDO"
+            responsable = s["resp"] if s["resp"] else "SIN ASIGNAR"
+ 
+            lineas.append(
+                f"#{s['id']} | {s['tipo']} | P{s['prio']} | {s['estado']} | "
+                f"{nombre_est} | {responsable}"
+            )
+ 
+        total = len(self.datos["solicitudes"])
+        resumen = (
+            f"Total: {total} Pend: {conteo['PENDIENTE']} Proc: {conteo['EN_PROCESO']} "
+            f"Res: {conteo['RESUELTA']} Rech: {conteo['RECHAZADA']}"
+        )
+        salida = "\n".join(lineas) + ("\n" if lineas else "") + resumen
+        print(salida)
         return salida
 
 
