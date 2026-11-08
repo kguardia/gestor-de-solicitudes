@@ -59,11 +59,11 @@ class GestorSolicitudes:
             return False
 
         self._obtener_o_crear_estudiante(solicitud)
-        self._obtener_o_crear_responsable(solicitud.resp, solicitud.area)
+        nombre_responsable = self._obtener_o_crear_responsable(solicitud.resp, solicitud.area)
         self.contador = self.contador + 1
         prio = self._aplicar_regla_prioridad(solicitud.tipo, solicitud.prio)
 
-        nueva_solicitud = self._crear_solicitud(solicitud, prio)
+        nueva_solicitud = self._crear_solicitud(solicitud, prio, nombre_responsable)
         self.datos["solicitudes"].append(nueva_solicitud)
         self.guardar()
         self._informar("solicitud " + str(self.contador) + " registrada")
@@ -92,19 +92,26 @@ class GestorSolicitudes:
         self.datos["estudiantes"].append(estudiante)
         return estudiante
 
+    # Smell #13: un unico lugar para buscar o crear responsables, usado por registrar
+    # y por asignar. La comparacion ignora mayusculas y espacios de mas, y devuelve
+    # siempre el nombre tal como quedo registrado la primera vez.
     def _obtener_o_crear_responsable(self, nombre_responsable, area):
-        for responsable_guardado in self.datos["responsables"]:
-            if responsable_guardado["nombre"] == nombre_responsable:
-                return responsable_guardado
         if nombre_responsable == "":
-            return None
-        responsable = {"nombre": nombre_responsable, "area": area}
-        self.datos["responsables"].append(responsable)
-        return responsable
+            return ""
+        nombre_buscado = self._normalizar_nombre(nombre_responsable)
+        for responsable_guardado in self.datos["responsables"]:
+            if self._normalizar_nombre(responsable_guardado["nombre"]) == nombre_buscado:
+                return responsable_guardado["nombre"]
+        self.datos["responsables"].append({"nombre": nombre_responsable, "area": area})
+        return nombre_responsable
 
-    def _crear_solicitud(self, solicitud, prio):
+    @staticmethod
+    def _normalizar_nombre(nombre):
+        return " ".join(nombre.split()).casefold()
+
+    def _crear_solicitud(self, solicitud, prio, nombre_responsable):
         return {"id": self.contador, "legajo": solicitud.legajo, "tipo": solicitud.tipo, "desc": solicitud.desc,
-                "prio": prio, "estado": "PENDIENTE", "resp": solicitud.resp, "fecha": solicitud.fecha}
+                "prio": prio, "estado": "PENDIENTE", "resp": nombre_responsable, "fecha": solicitud.fecha}
 
     def cambiar_estado(self, id_solicitud, nuevo_estado):
         for solicitud in self.datos["solicitudes"]:
@@ -134,15 +141,13 @@ class GestorSolicitudes:
         return False
 
     def asignar(self, id_solicitud, nombre_responsable, area):
+        # Smell #13: ya no se puede asignar un responsable sin nombre.
+        if nombre_responsable is None or nombre_responsable.strip() == "":
+            self._informar("responsable invalido")
+            return False
         for solicitud in self.datos["solicitudes"]:
             if solicitud["id"] == id_solicitud:
-                solicitud["resp"] = nombre_responsable
-                existe = False
-                for responsable in self.datos["responsables"]:
-                    if responsable["nombre"] == nombre_responsable:
-                        existe = True
-                if not existe:
-                    self.datos["responsables"].append({"nombre": nombre_responsable, "area": area})
+                solicitud["resp"] = self._obtener_o_crear_responsable(nombre_responsable, area)
                 self.guardar()
                 return True
         return False
