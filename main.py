@@ -177,3 +177,14 @@ class GestorSolicitudes:
         salida += "Total: " + str(total) + " Pend: " + str(pendientes) + " Proc: " + str(en_proceso) + " Res: " + str(resueltas) + " Rech: " + str(rechazadas)
         print(salida)
         return salida
+
+
+if __name__ == "__main__":
+    gestor = GestorSolicitudes()
+    gestor.registrar(NuevaSolicitud("L001", "Ana Perez", "ana@uni.edu", "BAJA", "Quiero darme de baja", 3, "Alumnos", "", "2026-03-01"))
+    gestor.registrar(NuevaSolicitud("L002", "Luis Gomez", "luis@uni.edu", "CERTIFICADO", "Certificado alumno regular", 1, "Alumnos", "Marta", "2026-03-02"))
+    gestor.registrar(NuevaSolicitud("L003", "Sofia Diaz", "sofi@uni.edu", "REVISION", "Revision de nota final", 3, "Docencia", "", "2026-03-03"))
+    gestor.cambiar_estado(1, "EN_PROCESO")
+    gestor.cambiar_estado(1, "RESUELTA")
+    gestor.asignar(3, "Carlos", "Docencia")
+    gestor.reporte()
