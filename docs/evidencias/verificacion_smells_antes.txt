@@ -1,0 +1,17 @@
+
+=== Smell #1: variables globales ===
+PASA  | lo que registra una instancia no aparece en otra
+PASA  | el modulo ya no expone datos ni contador globales
+
+=== Smell #8: print dentro de la logica ===
+PASA  | se puede crear el gestor con una salida propia (sin print)
+PASA  | con salida propia, la logica no escribe nada en la consola
+PASA  | el motivo del error queda disponible para quien llama
+
+=== Smell #13: responsable identificado por nombre ===
+FALLA | 'Marta', 'marta' y '  Marta ' son el mismo responsable
+FALLA | las tres solicitudes guardan el mismo nombre de responsable
+FALLA | no se puede asignar un responsable vacio
+FALLA | no se crean responsables sin nombre
+
+Resultado: 5 de 9 verificaciones pasan
