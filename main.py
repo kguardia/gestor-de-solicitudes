@@ -2,9 +2,6 @@ import json
 import os
 from dataclasses import dataclass
 
-datos = {"solicitudes": [], "estudiantes": [], "responsables": []}
-contador = 0
-
 @dataclass(frozen=True)
 class NuevaSolicitud:
     legajo: str
@@ -17,25 +14,57 @@ class NuevaSolicitud:
     resp: str
     fecha: str
 
+
+# Move Method: la lectura y escritura del archivo se mueven de GestorSolicitudes a
+# esta clase. El gestor solo conoce los metodos cargar y guardar, no el formato JSON
+# ni la ruta del archivo.
+class RepositorioJSON:
+
+    def __init__(self, ruta="datos.json"):
+        self.ruta = ruta
+
+    def cargar(self):
+        """Devuelve los datos guardados, o None si el archivo todavia no existe."""
+        if not os.path.exists(self.ruta):
+            return None
+        try:
+            with open(self.ruta) as archivo:
+                return json.load(archivo)
+        except (json.JSONDecodeError, OSError) as error:
+            raise RuntimeError("No se pudo leer " + self.ruta + ": " + str(error)) from error
+
+    def guardar(self, datos):
+        with open(self.ruta, "w") as archivo:
+            json.dump(datos, archivo)
+
+
 class GestorSolicitudes:
    
 
-    def __init__(self):
+    # Smell #1: los datos y el contador dejan de ser variables globales y pasan a ser
+    # atributos de cada instancia.
+    # Smell #8: los mensajes se envian a una funcion de salida que se recibe por
+    # parametro (por defecto print), en lugar de llamar a print desde la logica.
+    # Move Method: la persistencia se delega en un repositorio que tambien se recibe
+    # por parametro (por defecto, RepositorioJSON con datos.json).
+    def __init__(self, salida=print, repositorio=None):
+        self.datos = {"solicitudes": [], "estudiantes": [], "responsables": []}
+        self.contador = 0
+        self._salida = salida
+        self._repositorio = repositorio if repositorio is not None else RepositorioJSON()
         self.cargar()
 
+    def _informar(self, mensaje):
+        self._salida(mensaje)
+
     def cargar(self):
-        global datos, contador
-        if os.path.exists("datos.json"):
-            try:
-                with open("datos.json") as archivo:
-                    datos = json.load(archivo)
-                contador = len(datos["solicitudes"])
-            except (json.JSONDecodeError, OSError) as error:
-                raise RuntimeError("No se pudo leer datos.json: " + str(error)) from error
+        datos_guardados = self._repositorio.cargar()
+        if datos_guardados is not None:
+            self.datos = datos_guardados
+            self.contador = len(self.datos["solicitudes"])
 
     def guardar(self):
-        with open("datos.json", "w") as archivo:
-            json.dump(datos, archivo)
+        self._repositorio.guardar(self.datos)
 
     def _aplicar_regla_prioridad(self, tipo, prio):
         if tipo == "BAJA":
@@ -46,51 +75,69 @@ class GestorSolicitudes:
             return 3
         return prio
     
+    # Smell #2: registrar solo coordina los pasos; cada tarea esta en un metodo propio
+    # con una sola responsabilidad (Extract Method).
     def registrar(self, solicitud):
-        global contador
+        if not self._validar_registro(solicitud):
+            return False
 
+        self._obtener_o_crear_estudiante(solicitud)
+        nombre_responsable = self._obtener_o_crear_responsable(solicitud.resp, solicitud.area)
+        self.contador = self.contador + 1
+        prio = self._aplicar_regla_prioridad(solicitud.tipo, solicitud.prio)
+
+        nueva_solicitud = self._crear_solicitud(solicitud, prio, nombre_responsable)
+        self.datos["solicitudes"].append(nueva_solicitud)
+        self.guardar()
+        self._informar("solicitud " + str(self.contador) + " registrada")
+        return self.contador
+
+    def _validar_registro(self, solicitud):
         if solicitud.legajo == "" or solicitud.legajo is None:
-            print("legajo invalido")
+            self._informar("legajo invalido")
             return False
         if solicitud.tipo != "CERTIFICADO" and solicitud.tipo != "EQUIVALENCIA" and solicitud.tipo != "REVISION" and solicitud.tipo != "BAJA":
-            print("tipo invalido")
+            self._informar("tipo invalido")
             return False
-        prio = solicitud.prio
-        if prio != 1 and prio != 2 and prio != 3:
-            print("prioridad invalida")
+        if solicitud.prio != 1 and solicitud.prio != 2 and solicitud.prio != 3:
+            self._informar("prioridad invalida")
             return False
         if len(solicitud.desc) < 5:
-            print("descripcion muy corta")
+            self._informar("descripcion muy corta")
             return False
+        return True
 
-        estudiante = None
-        for estudiante_guardado in datos["estudiantes"]:
+    def _obtener_o_crear_estudiante(self, solicitud):
+        for estudiante_guardado in self.datos["estudiantes"]:
             if estudiante_guardado["legajo"] == solicitud.legajo:
-                estudiante = estudiante_guardado
-        if estudiante is None:
-            estudiante = {"legajo": solicitud.legajo, "nombre": solicitud.nombre_est, "email": solicitud.email}
-            datos["estudiantes"].append(estudiante)
+                return estudiante_guardado
+        estudiante = {"legajo": solicitud.legajo, "nombre": solicitud.nombre_est, "email": solicitud.email}
+        self.datos["estudiantes"].append(estudiante)
+        return estudiante
 
-        responsable = None
-        for responsable_guardado in datos["responsables"]:
-            if responsable_guardado["nombre"] == solicitud.resp:
-                responsable = responsable_guardado
-        if responsable is None and solicitud.resp != "":
-            responsable = {"nombre": solicitud.resp, "area": solicitud.area}
-            datos["responsables"].append(responsable)
-        contador = contador + 1
+    # Smell #13: un unico lugar para buscar o crear responsables, usado por registrar
+    # y por asignar. La comparacion ignora mayusculas y espacios de mas, y devuelve
+    # siempre el nombre tal como quedo registrado la primera vez.
+    def _obtener_o_crear_responsable(self, nombre_responsable, area):
+        if nombre_responsable == "":
+            return ""
+        nombre_buscado = self._normalizar_nombre(nombre_responsable)
+        for responsable_guardado in self.datos["responsables"]:
+            if self._normalizar_nombre(responsable_guardado["nombre"]) == nombre_buscado:
+                return responsable_guardado["nombre"]
+        self.datos["responsables"].append({"nombre": nombre_responsable, "area": area})
+        return nombre_responsable
 
-        prio = self._aplicar_regla_prioridad(solicitud.tipo, prio)
+    @staticmethod
+    def _normalizar_nombre(nombre):
+        return " ".join(nombre.split()).casefold()
 
-        nueva_solicitud = {"id": contador, "legajo": solicitud.legajo, "tipo": solicitud.tipo, "desc": solicitud.desc,
-                           "prio": prio, "estado": "PENDIENTE", "resp": solicitud.resp, "fecha": solicitud.fecha}
-        datos["solicitudes"].append(nueva_solicitud)
-        self.guardar()
-        print("solicitud " + str(contador) + " registrada")
-        return contador
-    
+    def _crear_solicitud(self, solicitud, prio, nombre_responsable):
+        return {"id": self.contador, "legajo": solicitud.legajo, "tipo": solicitud.tipo, "desc": solicitud.desc,
+                "prio": prio, "estado": "PENDIENTE", "resp": nombre_responsable, "fecha": solicitud.fecha}
+
     def cambiar_estado(self, id_solicitud, nuevo_estado):
-        for solicitud in datos["solicitudes"]:
+        for solicitud in self.datos["solicitudes"]:
             if solicitud["id"] == id_solicitud:
 
 
@@ -100,7 +147,7 @@ class GestorSolicitudes:
                         self.guardar()
                         return True
                     else:
-                        print("transicion invalida")
+                        self._informar("transicion invalida")
                         return False
                 elif solicitud["estado"] == "EN_PROCESO":
                     if nuevo_estado == "RESUELTA" or nuevo_estado == "RECHAZADA":
@@ -108,24 +155,22 @@ class GestorSolicitudes:
                         self.guardar()
                         return True
                     else:
-                        print("transicion invalida")
+                        self._informar("transicion invalida")
                         return False
                 else:
-                    print("la solicitud ya esta cerrada")
+                    self._informar("la solicitud ya esta cerrada")
                     return False
-        print("no existe")
+        self._informar("no existe")
         return False
 
     def asignar(self, id_solicitud, nombre_responsable, area):
-        for solicitud in datos["solicitudes"]:
+        # Smell #13: ya no se puede asignar un responsable sin nombre.
+        if nombre_responsable is None or nombre_responsable.strip() == "":
+            self._informar("responsable invalido")
+            return False
+        for solicitud in self.datos["solicitudes"]:
             if solicitud["id"] == id_solicitud:
-                solicitud["resp"] = nombre_responsable
-                existe = False
-                for responsable in datos["responsables"]:
-                    if responsable["nombre"] == nombre_responsable:
-                        existe = True
-                if not existe:
-                    datos["responsables"].append({"nombre": nombre_responsable, "area": area})
+                solicitud["resp"] = self._obtener_o_crear_responsable(nombre_responsable, area)
                 self.guardar()
                 return True
         return False
@@ -133,21 +178,21 @@ class GestorSolicitudes:
 
     def buscar_por_estado(self, estado):
         resultado = []
-        for solicitud in datos["solicitudes"]:
+        for solicitud in self.datos["solicitudes"]:
             if solicitud["estado"] == estado:
                 resultado.append(solicitud)
         return resultado
 
     def buscar_por_tipo(self, tipo):
         resultado = []
-        for solicitud in datos["solicitudes"]:
+        for solicitud in self.datos["solicitudes"]:
             if solicitud["tipo"] == tipo:
                 resultado.append(solicitud)
         return resultado
 
     def buscar_por_prioridad(self, prioridad):
         resultado = []
-        for solicitud in datos["solicitudes"]:
+        for solicitud in self.datos["solicitudes"]:
             if solicitud["prio"] == prioridad:
                 resultado.append(solicitud)
         return resultado
@@ -160,7 +205,7 @@ class GestorSolicitudes:
         en_proceso = 0
         resueltas = 0
         rechazadas = 0
-        for solicitud in datos["solicitudes"]:
+        for solicitud in self.datos["solicitudes"]:
             total += 1
             if solicitud["estado"] == "PENDIENTE":
                 pendientes += 1
@@ -171,12 +216,12 @@ class GestorSolicitudes:
             if solicitud["estado"] == "RECHAZADA":
                 rechazadas += 1
             nombre_estudiante = ""
-            for estudiante in datos["estudiantes"]:
+            for estudiante in self.datos["estudiantes"]:
                 if estudiante["legajo"] == solicitud["legajo"]:
                     nombre_estudiante = estudiante["nombre"]
             salida += "#" + str(solicitud["id"]) + " | " + solicitud["tipo"] + " | P" + str(solicitud["prio"]) + " | " + solicitud["estado"] + " | " + nombre_estudiante + " | " + (solicitud["resp"] if solicitud["resp"] != "" else "SIN ASIGNAR") + "\n"
         salida += "Total: " + str(total) + " Pend: " + str(pendientes) + " Proc: " + str(en_proceso) + " Res: " + str(resueltas) + " Rech: " + str(rechazadas)
-        print(salida)
+        self._informar(salida)
         return salida
 
 
